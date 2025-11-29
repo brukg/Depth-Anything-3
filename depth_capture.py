@@ -182,11 +182,11 @@ class DepthCapture:
 
         # Extract results
         depth = prediction.depth[0]  # Shape: (H, W)
-        conf = prediction.conf[0] if hasattr(prediction, 'conf') else np.ones_like(depth)
+        conf = prediction.conf[0] if hasattr(prediction, 'conf') and prediction.conf is not None else np.ones_like(depth)
 
-        # Extract camera parameters if available
-        extrinsics = prediction.extrinsics[0] if hasattr(prediction, 'extrinsics') else None
-        intrinsics = prediction.intrinsics[0] if hasattr(prediction, 'intrinsics') else None
+        # Extract camera parameters if available (only if not None)
+        extrinsics = prediction.extrinsics[0] if hasattr(prediction, 'extrinsics') and prediction.extrinsics is not None else None
+        intrinsics = prediction.intrinsics[0] if hasattr(prediction, 'intrinsics') and prediction.intrinsics is not None else None
 
         return depth, conf, extrinsics, intrinsics
 
@@ -270,13 +270,23 @@ class DepthCapture:
                         if key == ord('q'):
                             break
                     
-                    # convert to meters and print the closest object distance
-                    focal_length = intrinsics[0, 0]
-                    depth_meters = depth * focal_length/300
-                    closest_object_distance = np.min(depth_meters)
-                    print(f"Closest object distance: {closest_object_distance:.2f} meters")
-                    furthest_object_distance = np.max(depth_meters)
-                    print(f"Furthest object distance: {furthest_object_distance:.2f} meters")
+                    try:
+                        if intrinsics is not None:
+                            # convert to meters and print the closest object distance
+                            focal_length = intrinsics[0, 0]
+                            depth_meters = depth * focal_length/300
+                            closest_object_distance = np.min(depth_meters)
+                            print(f"Closest object distance: {closest_object_distance:.2f} meters")
+                            furthest_object_distance = np.max(depth_meters)
+                            print(f"Furthest object distance: {furthest_object_distance:.2f} meters")
+                        else:
+                            depth_meters = depth
+                            closest_object_distance = np.min(depth_meters)
+                            print(f"Closest object distance: {closest_object_distance:.2f} meters")
+                            furthest_object_distance = np.max(depth_meters)
+                            print(f"Furthest object distance: {furthest_object_distance:.2f} meters")
+                    except Exception as e:
+                        print(f"Error converting depth to meters: {e}")
 
                     # Save if requested
                     if save_dir and frame_count % 30 == 0:  # Save every 30 frames
@@ -381,7 +391,8 @@ def main():
     parser.add_argument(
         '--model-name',
         type=str,
-        default='depth-anything/DA3-BASE',
+        default='depth-anything/DA3METRIC-LARGE',
+        # default='depth-anything/DA3-BASE',
         # default='depth-anything/DA3-SMALL',
         help='Pretrained model name or path'
     )
